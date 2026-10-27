@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouTube MKV & AA3 Media Converter</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex items-center justify-center p-4">
+  <div class="max-w-xl w-full bg-slate-800/90 border border-slate-700 rounded-2xl p-6 shadow-2xl backdrop-blur-sm">
+    <div class="text-center mb-6">
+      <h1 class="text-2xl font-bold tracking-tight text-white">MediaStream Downloader</h1>
+      <p class="text-sm text-slate-400 mt-1">Convert YouTube links to Matroska (.mkv) or Sony ATRAC3 (.aa3)</p>
+    </div>
+
+    <!-- Backend URL Configuration -->
+    <div class="mb-4">
+      <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">Backend Server API URL</label>
+      <input id="backendUrl" type="text" value="http://localhost:8000" placeholder="https://your-server.render.com" class="w-full px-3 py-2 bg-slate-950/80 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+      <p class="text-[11px] text-slate-500 mt-1">Default is localhost. Replace with your deployed cloud backend URL once hosted.</p>
+    </div>
+
+    <!-- YouTube Link -->
+    <div class="mb-4">
+      <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1">YouTube Video URL</label>
+      <input id="videoUrl" type="text" placeholder="https://www.youtube.com/watch?v=..." class="w-full px-3 py-2 bg-slate-950/80 border border-slate-700 rounded-lg text-sm text-slate-200 focus:outline-none focus:border-indigo-500">
+    </div>
+
+    <!-- Format Selection -->
+    <div class="mb-6">
+      <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Target Output Format</label>
+      <div class="grid grid-cols-2 gap-3">
+        <label class="flex items-center gap-2 p-3 bg-slate-950/60 border border-slate-700 rounded-xl cursor-pointer hover:border-indigo-500 transition">
+          <input type="radio" name="format" value="mkv" checked class="text-indigo-600 focus:ring-0">
+          <div>
+            <div class="text-sm font-semibold text-white">MKV Video</div>
+            <div class="text-xs text-slate-400">Best Quality Video + Audio</div>
+          </div>
+        </label>
+        <label class="flex items-center gap-2 p-3 bg-slate-950/60 border border-slate-700 rounded-xl cursor-pointer hover:border-indigo-500 transition">
+          <input type="radio" name="format" value="aa3" class="text-indigo-600 focus:ring-0">
+          <div>
+            <div class="text-sm font-semibold text-white">AA3 Audio</div>
+            <div class="text-xs text-slate-400">Sony ATRAC3 OpenMG</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- Convert Button -->
+    <button id="convertBtn" onclick="startDownload()" class="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-medium rounded-xl transition shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2">
+      <span>Convert & Download</span>
+    </button>
+
+    <!-- Status Message -->
+    <div id="status" class="mt-4 text-xs text-center text-slate-400 hidden"></div>
+  </div>
+
+  <script>
+    async function startDownload() {
+      const backend = document.getElementById('backendUrl').value.replace(/\/$/, '');
+      const url = document.getElementById('videoUrl').value.trim();
+      const format = document.querySelector('input[name="format"]:checked').value;
+      const status = document.getElementById('status');
+      const btn = document.getElementById('convertBtn');
+
+      if (!url) {
+        alert('Please enter a YouTube video URL.');
+        return;
+      }
+
+      status.classList.remove('hidden');
+      status.innerText = 'Connecting to server and transcoding... This can take 15-45 seconds depending on video length.';
+      btn.disabled = true;
+      btn.classList.add('opacity-50', 'cursor-not-allowed');
+
+      try {
+        const response = await fetch(`${backend}/api/transcode`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, format })
+        });
+
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.detail || 'Conversion failed on server.');
+        }
+
+        status.innerText = 'Transcoding complete! Preparing file download...';
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `youtube_media_${Date.now()}.${format}`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        status.innerText = 'Download initiated successfully!';
+      } catch (err) {
+        status.innerText = `Error: ${err.message}`;
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('opacity-50', 'cursor-not-allowed');
+      }
+    }
+  </script>
+</body>
+</html>
